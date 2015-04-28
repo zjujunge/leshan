@@ -24,6 +24,7 @@ import java.util.Set;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.network.CoAPEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
+import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig.Builder;
@@ -76,6 +77,10 @@ public class LeshanServer implements LwM2mServer {
 
     private final LwM2mModelProvider modelProvider;
 
+    private final CoAPEndpoint nonSecureEndpoint;
+
+    private final CoAPEndpoint secureEndpoint;
+
     /**
      * Initialize a server which will bind to the specified address and port.
      *
@@ -120,8 +125,8 @@ public class LeshanServer implements LwM2mServer {
 
         // default endpoint
         coapServer = new CoapServer();
-        final Endpoint endpoint = new CoAPEndpoint(localAddress);
-        coapServer.addEndpoint(endpoint);
+        nonSecureEndpoint = new CoAPEndpoint(localAddress);
+        coapServer.addEndpoint(nonSecureEndpoint);
 
         // secure endpoint
         Builder builder = new DtlsConnectorConfig.Builder(localAddressSecure);
@@ -132,7 +137,7 @@ public class LeshanServer implements LwM2mServer {
             builder.setIdentity(privateKey, publicKey);
         }
 
-        final Endpoint secureEndpoint = new SecureEndpoint(new DTLSConnector(builder.build()));
+        secureEndpoint = new CoAPEndpoint(new DTLSConnector(builder.build()), NetworkConfig.getStandard());
         coapServer.addEndpoint(secureEndpoint);
 
         // define /rd resource
@@ -142,7 +147,7 @@ public class LeshanServer implements LwM2mServer {
 
         // create sender
         final Set<Endpoint> endpoints = new HashSet<>();
-        endpoints.add(endpoint);
+        endpoints.add(nonSecureEndpoint);
         endpoints.add(secureEndpoint);
         requestSender = new CaliforniumLwM2mRequestSender(endpoints, this.observationRegistry, modelProvider);
     }
@@ -245,5 +250,13 @@ public class LeshanServer implements LwM2mServer {
      */
     public CoapServer getCoapServer() {
         return coapServer;
+    }
+
+    public InetSocketAddress getNonSecureAddress() {
+        return nonSecureEndpoint.getAddress();
+    }
+
+    public InetSocketAddress getSecureAddress() {
+        return secureEndpoint.getAddress();
     }
 }
