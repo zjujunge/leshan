@@ -74,12 +74,7 @@ public class ClientRegistryImpl implements ClientRegistry, Startable, Stoppable 
 
         Client previous = clientsByEp.put(client.getEndpoint(), client);
         if (previous != null) {
-            for (ClientRegistryListener l : listeners) {
-                l.unregistered(previous);
-            }
-        }
-        for (ClientRegistryListener l : listeners) {
-            l.registered(client);
+            fireClientUnregistered(previous);
         }
 
         return true;
@@ -96,11 +91,6 @@ public class ClientRegistryImpl implements ClientRegistry, Startable, Stoppable 
         } else {
             Client clientUpdated = update.updateClient(client);
             clientsByEp.put(clientUpdated.getEndpoint(), clientUpdated);
-
-            // notify listener
-            for (ClientRegistryListener l : listeners) {
-                l.updated(clientUpdated);
-            }
             return clientUpdated;
         }
     }
@@ -116,9 +106,6 @@ public class ClientRegistryImpl implements ClientRegistry, Startable, Stoppable 
             return null;
         } else {
             Client unregistered = clientsByEp.remove(toBeUnregistered.getEndpoint());
-            for (ClientRegistryListener l : listeners) {
-                l.unregistered(unregistered);
-            }
             LOG.debug("Deregistered client: {}", unregistered);
             return unregistered;
         }
@@ -174,6 +161,27 @@ public class ClientRegistryImpl implements ClientRegistry, Startable, Stoppable 
                     }
                 }
             }
+        }
+    }
+
+    @Override
+    public void fireClientRegistred(Client client) {
+        for (ClientRegistryListener l : listeners) {
+            l.registered(client);
+        }
+    }
+
+    @Override
+    public void fireClientUnregistered(Client client) {
+        for (ClientRegistryListener l : listeners) {
+            l.unregistered(client);
+        }
+    }
+
+    @Override
+    public void fireRegistrationUpdated(Client client) {
+        for (ClientRegistryListener l : listeners) {
+            l.updated(client);
         }
     }
 }

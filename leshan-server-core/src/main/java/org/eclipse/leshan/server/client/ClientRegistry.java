@@ -78,4 +78,10 @@ public interface ClientRegistry {
      * @return the previously registered client or <code>null</code> if no client is registered under the given ID
      */
     Client deregisterClient(String registrationId);
+
+    void fireClientRegistred(Client c);
+
+    void fireClientUnregistered(Client client);
+
+    void fireRegistrationUpdated(Client client);
 }

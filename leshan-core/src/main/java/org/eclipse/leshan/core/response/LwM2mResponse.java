@@ -24,6 +24,7 @@ import org.eclipse.leshan.util.Validate;
 public class LwM2mResponse {
 
     protected final ResponseCode code;
+    protected Runnable sendedCallback;
 
     public LwM2mResponse(final ResponseCode code) {
         Validate.notNull(code);
@@ -42,5 +43,14 @@ public class LwM2mResponse {
     @Override
     public String toString() {
         return String.format("LwM2mResponse [code=%s]", code);
+    }
+
+    public void whenSended(Runnable callback) {
+        this.sendedCallback = callback;
+    }
+
+    public void sended() {
+        if (sendedCallback != null)
+            sendedCallback.run();
     }
 }

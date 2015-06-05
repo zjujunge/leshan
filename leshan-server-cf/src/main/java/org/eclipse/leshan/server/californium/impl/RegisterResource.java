@@ -25,6 +25,7 @@ import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
+import org.eclipse.californium.core.network.ExchangeObserver;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.leshan.LinkObject;
@@ -139,10 +140,18 @@ public class RegisterResource extends CoapResource {
 
         // Handle request
         // -------------------------------
-        RegisterResponse response = registrationHandler.register(registerRequest);
+        final RegisterResponse response = registrationHandler.register(registerRequest);
 
         // Create CoAP Response from LwM2m request
         // -------------------------------
+        // mark the response as sended when the exchange is complete
+        exchange.advanced().setObserver(new ExchangeObserver() {
+            @Override
+            public void completed(Exchange exchange) {
+                response.sended();
+            }
+        });
+        // send the response
         if (response.getCode() == org.eclipse.leshan.ResponseCode.CREATED) {
             exchange.setLocationPath(RESOURCE_NAME + "/" + response.getRegistrationID());
             exchange.respond(ResponseCode.CREATED);
@@ -227,10 +236,18 @@ public class RegisterResource extends CoapResource {
 
         // Handle request
         // -------------------------------
-        LwM2mResponse updateResponse = registrationHandler.update(updateRequest);
+        final LwM2mResponse updateResponse = registrationHandler.update(updateRequest);
 
         // Create CoAP Response from LwM2m request
         // -------------------------------
+        // mark the response as sended when the exchange is complete
+        exchange.advanced().setObserver(new ExchangeObserver() {
+            @Override
+            public void completed(Exchange exchange) {
+                updateResponse.sended();
+            }
+        });
+        // send the response
         exchange.respond(fromLwM2mCode(updateResponse.getCode()));
     }
 
@@ -242,7 +259,20 @@ public class RegisterResource extends CoapResource {
 
         if (uri != null && uri.size() == 2 && RESOURCE_NAME.equals(uri.get(0))) {
             DeregisterRequest deregisterRequest = new DeregisterRequest(uri.get(1));
-            LwM2mResponse deregisterResponse = registrationHandler.deregister(deregisterRequest);
+
+            // Handle request
+            final LwM2mResponse deregisterResponse = registrationHandler.deregister(deregisterRequest);
+
+            // Create CoAP Response from LwM2m request
+            // -------------------------------
+            // mark the response as sended when the exchange is complete
+            exchange.advanced().setObserver(new ExchangeObserver() {
+                @Override
+                public void completed(Exchange exchange) {
+                    deregisterResponse.sended();
+                }
+            });
+            // send the response
             exchange.respond(fromLwM2mCode(deregisterResponse.getCode()));
 
             if (exchange.advanced().getEndpoint() instanceof SecureEndpoint

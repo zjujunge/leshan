@@ -114,14 +114,21 @@ public class RegistrationHandler {
                 }
             }
 
-            Client client = new Client(registrationId, registerRequest.getEndpointName(),
+            final Client client = new Client(registrationId, registerRequest.getEndpointName(),
                     registerRequest.getSourceAddress(), registerRequest.getSourcePort(),
                     registerRequest.getLwVersion(), registerRequest.getLifetime(), registerRequest.getSmsNumber(),
                     registerRequest.getBindingMode(), registerRequest.getObjectLinks(), registrationEndpoint);
 
             if (clientRegistry.registerClient(client)) {
                 LOG.debug("New registered client: {}", client);
-                return new RegisterResponse(ResponseCode.CREATED, client.getRegistrationId());
+                RegisterResponse response = new RegisterResponse(ResponseCode.CREATED, client.getRegistrationId());
+                response.whenSended(new Runnable() {
+                    @Override
+                    public void run() {
+                        clientRegistry.fireClientRegistred(client);
+                    }
+                });
+                return response;
             } else {
                 return new RegisterResponse(ResponseCode.FORBIDDEN);
             }
@@ -129,20 +136,34 @@ public class RegistrationHandler {
     }
 
     public LwM2mResponse update(UpdateRequest updateRequest) {
-        Client client = clientRegistry.updateClient(new ClientUpdate(updateRequest.getRegistrationId(), updateRequest
-                .getAddress(), updateRequest.getPort(), updateRequest.getLifeTimeInSec(), updateRequest.getSmsNumber(),
-                updateRequest.getBindingMode(), updateRequest.getObjectLinks()));
+        final Client client = clientRegistry.updateClient(new ClientUpdate(updateRequest.getRegistrationId(),
+                updateRequest.getAddress(), updateRequest.getPort(), updateRequest.getLifeTimeInSec(), updateRequest
+                        .getSmsNumber(), updateRequest.getBindingMode(), updateRequest.getObjectLinks()));
         if (client == null) {
             return new LwM2mResponse(ResponseCode.NOT_FOUND);
         } else {
-            return new LwM2mResponse(ResponseCode.CHANGED);
+            LwM2mResponse response = new LwM2mResponse(ResponseCode.CHANGED);
+            response.whenSended(new Runnable() {
+                @Override
+                public void run() {
+                    clientRegistry.fireRegistrationUpdated(client);
+                }
+            });
+            return response;
         }
     }
 
     public LwM2mResponse deregister(DeregisterRequest deregisterRequest) {
-        Client unregistered = clientRegistry.deregisterClient(deregisterRequest.getRegistrationID());
-        if (unregistered != null) {
-            return new LwM2mResponse(ResponseCode.DELETED);
+        final Client client = clientRegistry.deregisterClient(deregisterRequest.getRegistrationID());
+        if (client != null) {
+            LwM2mResponse response = new LwM2mResponse(ResponseCode.DELETED);
+            response.whenSended(new Runnable() {
+                @Override
+                public void run() {
+                    clientRegistry.fireClientUnregistered(client);
+                }
+            });
+            return response;
         } else {
             LOG.debug("Invalid deregistration");
             return new LwM2mResponse(ResponseCode.NOT_FOUND);
