@@ -180,6 +180,8 @@ public class SecurityTest {
         helper.createX509CertClient(goodPrivateKey, trustedCA);
         helper.client.start();
 
+        helper.server.getSecurityRegistry().add(SecurityInfo.newX509CertInfo(ENDPOINT_IDENTIFIER));
+
         // client registration
         RegisterResponse response = helper.client.send(new RegisterRequest(ENDPOINT_IDENTIFIER));
 
@@ -197,6 +199,8 @@ public class SecurityTest {
         boolean trustedCA = true;
         helper.createX509CertClient(goodPrivateKey, trustedCA);
         helper.client.start();
+
+        helper.server.getSecurityRegistry().add(SecurityInfo.newX509CertInfo("bad_endpoint"));
 
         // client registration
         RegisterResponse response = helper.client.send(new RegisterRequest("bad_endpoint"));
@@ -219,6 +223,8 @@ public class SecurityTest {
         helper.createX509CertClient(goodPrivateKey, trustedCA);
         helper.client.start();
 
+        helper.server.getSecurityRegistry().add(SecurityInfo.newX509CertInfo(ENDPOINT_IDENTIFIER));
+
         // client registration
         RegisterResponse response = helper.client.send(new RegisterRequest(ENDPOINT_IDENTIFIER));
 
@@ -239,6 +245,8 @@ public class SecurityTest {
         boolean trustedCA = false;
         helper.createX509CertClient(goodPrivateKey, trustedCA);
         helper.client.start();
+
+        helper.server.getSecurityRegistry().add(SecurityInfo.newX509CertInfo(ENDPOINT_IDENTIFIER));
 
         // client registration
         RegisterResponse response = helper.client.send(new RegisterRequest(ENDPOINT_IDENTIFIER));
@@ -297,6 +305,8 @@ public class SecurityTest {
         helper.createRPKandX509CertClient();
         helper.client.start();
 
+        helper.server.getSecurityRegistry().add(SecurityInfo.newX509CertInfo(ENDPOINT_IDENTIFIER));
+
         // client registration
         RegisterResponse response = helper.client.send(new RegisterRequest(ENDPOINT_IDENTIFIER));
 
@@ -309,9 +319,11 @@ public class SecurityTest {
         helper.createServerWithX509Cert();
         helper.server.start();
 
-        // Works because RPK creds are set before X509 creds and X509 replace RPK
+        // Works because PSK creds are set before X509 creds and X509 replace PSK
         helper.createPSKandX509CertClient();
         helper.client.start();
+
+        helper.server.getSecurityRegistry().add(SecurityInfo.newX509CertInfo(ENDPOINT_IDENTIFIER));
 
         // client registration
         RegisterResponse response = helper.client.send(new RegisterRequest(ENDPOINT_IDENTIFIER));
@@ -331,6 +343,8 @@ public class SecurityTest {
         // Works because RPK creds are set before X509 creds and X509 replace RPK
         helper.createX509CertClient(goodPrivateKey, trustedCA);
         helper.client.start();
+
+        helper.server.getSecurityRegistry().add(SecurityInfo.newX509CertInfo(ENDPOINT_IDENTIFIER));
 
         // client registration
         RegisterResponse response = helper.client.send(new RegisterRequest(ENDPOINT_IDENTIFIER));
