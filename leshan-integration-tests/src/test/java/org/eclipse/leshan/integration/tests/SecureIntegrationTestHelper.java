@@ -67,6 +67,8 @@ public class SecureIntegrationTestHelper extends IntegrationTestHelper {
     public final X509Certificate[] clientX509CertChain = new X509Certificate[2];
     public final X509Certificate[] serverX509CertChain = new X509Certificate[2];
     public final Certificate[] trustedCertificates = new Certificate[2];
+    public final X509Certificate clientCAX509Cert;
+    public final X509Certificate serverCAX509Cert;
 
     public SecureIntegrationTestHelper() {
         // create client credentials
@@ -100,7 +102,7 @@ public class SecureIntegrationTestHelper extends IntegrationTestHelper {
             clientKeyStore.load(clientKeyStoreFile, clientKeyStorePwd);
 
             clientPrivateKeyFromCert = (PrivateKey) clientKeyStore.getKey("client", clientKeyStorePwd);
-            X509Certificate clientCAX509Cert = (X509Certificate) clientKeyStore.getCertificate("clientCA");
+            clientCAX509Cert = (X509Certificate) clientKeyStore.getCertificate("clientCA");
             clientX509CertChain[0] = (X509Certificate) clientKeyStore.getCertificate("client");
             clientX509CertChain[1] = clientCAX509Cert;
             trustedCertificates[0] = clientCAX509Cert;
@@ -140,7 +142,7 @@ public class SecureIntegrationTestHelper extends IntegrationTestHelper {
             serverKeyStore.load(serverKeyStoreFile, serverKeyStorePwd);
 
             serverPrivateKeyFromCert = (PrivateKey) serverKeyStore.getKey("server", serverKeyStorePwd);
-            X509Certificate serverCAX509Cert = (X509Certificate) serverKeyStore.getCertificate("serverCA");
+            serverCAX509Cert = (X509Certificate) serverKeyStore.getCertificate("serverCA");
             serverX509CertChain[0] = (X509Certificate) serverKeyStore.getCertificate("server");
             serverX509CertChain[1] = serverCAX509Cert;
             trustedCertificates[1] = serverCAX509Cert;
@@ -182,24 +184,14 @@ public class SecureIntegrationTestHelper extends IntegrationTestHelper {
     }
 
     // TODO we need better API for secure client, maybe we need a builder like leshanServer.
-    public void createX509CertClient(boolean goodPrivateKey, boolean trustedCA) {
+    public void createX509CertClient(PrivateKey privatekey, Certificate[] trustedCertificates) {
         ObjectsInitializer initializer = new ObjectsInitializer();
         List<ObjectEnabler> objects = initializer.create(2, 3);
 
         InetSocketAddress clientAddress = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
         DtlsConnectorConfig.Builder config = new DtlsConnectorConfig.Builder(clientAddress);
-        if (goodPrivateKey) {
-            config.setIdentity(clientPrivateKeyFromCert, clientX509CertChain, false);
-        } else {
-            config.setIdentity(clientPrivateKey, clientX509CertChain, false);
-        }
-
-        if (trustedCA) {
-            config.setTrustStore(trustedCertificates);
-        } else {
-            trustedCertificates[0] = trustedCertificates[1];
-            config.setTrustStore(trustedCertificates);
-        }
+        config.setIdentity(privatekey, clientX509CertChain, false);
+        config.setTrustStore(trustedCertificates);
 
         CoapServer coapServer = new CoapServer();
         coapServer.addEndpoint(new CoAPEndpoint(new DTLSConnector(config.build()), NetworkConfig.getStandard()));
@@ -242,25 +234,6 @@ public class SecureIntegrationTestHelper extends IntegrationTestHelper {
                 new ArrayList<LwM2mObjectEnabler>(objects));
     }
 
-    // TODO we need better API for secure client, maybe we need a builder like leshanServer.
-    public void createRPKandX509CertClient() {
-        ObjectsInitializer initializer = new ObjectsInitializer();
-        List<ObjectEnabler> objects = initializer.create(2, 3);
-
-        InetSocketAddress clientAddress = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
-        DtlsConnectorConfig.Builder config = new DtlsConnectorConfig.Builder(clientAddress);
-        // Configure RPK
-        config.setIdentity(clientPrivateKey, clientPublicKey);
-        // Configure X509 Certificate - erase RPK keys
-        config.setIdentity(clientPrivateKeyFromCert, clientX509CertChain, false);
-        config.setTrustStore(trustedCertificates);
-
-        CoapServer coapServer = new CoapServer();
-        coapServer.addEndpoint(new CoAPEndpoint(new DTLSConnector(config.build()), NetworkConfig.getStandard()));
-        client = new LeshanClient(clientAddress, server.getSecureAddress(), coapServer,
-                new ArrayList<LwM2mObjectEnabler>(objects));
-    }
-
     public void createServerWithRPK() {
         LeshanServerBuilder builder = new LeshanServerBuilder();
         builder.setLocalAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
@@ -282,50 +255,11 @@ public class SecureIntegrationTestHelper extends IntegrationTestHelper {
         server = builder.build();
     }
 
-    public void createServerWithX509Cert() {
+    public void createServerWithX509Cert(Certificate[] trustedCertificates) {
         LeshanServerBuilder builder = new LeshanServerBuilder();
         builder.setLocalAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
         builder.setLocalAddressSecure(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
 
-        builder.setSecurityRegistry(new SecurityRegistryImpl(serverPrivateKeyFromCert, serverX509CertChain,
-                trustedCertificates) {
-            // TODO we should separate SecurityRegistryImpl in 2 registries :
-            // InMemorySecurityRegistry and PersistentSecurityRegistry
-            @Override
-            protected void loadFromFile() {
-                // do not load From File
-            }
-
-            @Override
-            protected void saveToFile() {
-                // do not save to file
-            }
-        });
-
-        server = builder.build();
-    }
-
-    public void createServerWithRPKandX509Cert() {
-        LeshanServerBuilder builder = new LeshanServerBuilder();
-        builder.setLocalAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
-        builder.setLocalAddressSecure(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
-
-        // Configure RPK
-        builder.setSecurityRegistry(new SecurityRegistryImpl(serverPrivateKey, serverPublicKey) {
-            // TODO we should separate SecurityRegistryImpl in 2 registries :
-            // InMemorySecurityRegistry and PersistentSecurityRegistry
-            @Override
-            protected void loadFromFile() {
-                // do not load From File
-            }
-
-            @Override
-            protected void saveToFile() {
-                // do not save to file
-            }
-        });
-
-        // Configure X509 certificate - erase RPK
         builder.setSecurityRegistry(new SecurityRegistryImpl(serverPrivateKeyFromCert, serverX509CertChain,
                 trustedCertificates) {
             // TODO we should separate SecurityRegistryImpl in 2 registries :
